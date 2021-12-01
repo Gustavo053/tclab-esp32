@@ -286,8 +286,7 @@ try:
         datasToWrite.append(49)
         datasToWrite.append(8)
         
-        valueQ1 = max(0, min(Q1[i], 100))
-        datasToWrite.append(int((valueQ1 * 255) / 100))
+        datasToWrite.append(Q1[i])
         board.send_sysex(0x04, datasToWrite)
 
         # a.Q1(Q1[i])
