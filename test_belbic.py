@@ -286,7 +286,7 @@ try:
         datasToWrite.append(49)
         datasToWrite.append(8)
         
-        datasToWrite.append(Q1[i])
+        datasToWrite.append(int(Q1[i]))
         board.send_sysex(0x04, datasToWrite)
 
         # a.Q1(Q1[i])
