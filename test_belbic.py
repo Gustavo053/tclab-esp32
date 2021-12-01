@@ -4,11 +4,14 @@
 #define IS_PIN_ANALOG(p)        (((p) >= 32 && (p) <= 32 + TOTAL_ANALOG_PINS))
 #define IS_PIN_PWM(p)           digitalPinHasPWM(p) // all gpios in digital
 
+from copy import error
 from pyfirmata import Arduino, util
 import numpy as np
 import time
 import matplotlib.pyplot as plt
 from scipy.integrate import odeint
+from BELBIC import belbic
+from BELBIC.calc import e_dot
 
 board = Arduino('/dev/ttyUSB0')
 it = util.Iterator(board)
@@ -19,27 +22,6 @@ print('✔ board ready!')
 temperature = 0
 
 def handle_temperature(*data):
-    # print(data)
-
-    # datasToWrite = []
-
-    # datasToWrite.append(12)
-    # datasToWrite.append(0)
-    # datasToWrite.append(1)
-    # datasToWrite.append(8)
-    # datasToWrite.append(204)
-
-    # value = 204
-
-    # v = divmod(value, 127)
-
-    # for i in range(1, v[0]):
-    #     datasToWrite.append(127)
-
-    # if (v[0] >= 1):
-    #     datasToWrite.append(v[1])
-    # else:
-    #     datasToWrite.append(value)
 
     rawV = 0
 
@@ -51,7 +33,6 @@ def handle_temperature(*data):
     temperature = (rawV * (5000 / 1023)) / 10
 
     # print(temperature)
-    # board.send_sysex(0x04, datasToWrite)
 
 
 board.add_cmd_handler(0x02, handle_temperature)
@@ -147,7 +128,7 @@ def heat(x, t, Q):
 # a.LED(100)
 
 # Run time in minutes
-run_time = 15
+run_time = 2
 
 # Number of cycles
 loops = int(60.0*run_time)
@@ -199,6 +180,32 @@ prev_time = start_time
 dt_error = 0.0
 # Integral error
 ierr = 0.0
+
+uMax = 3.3
+
+ePlot = np.zeros(loops)
+uPlot = np.zeros(loops)
+
+eant = 0
+iant = 0
+E_dot = 0
+
+belbic.kp = 10
+belbic.ki = 10 / 50
+belbic.kd = 10 * 1
+
+belbic.h = 60*run_time
+belbic.E_dot = E_dot
+
+belbic.alpha = 1.93
+belbic.beta = 0.78
+
+vi = 0.81
+wi = 1.0
+
+A = 0
+O = 0
+
 try:
     for i in range(1, loops):
         # Sleep time
@@ -238,7 +245,29 @@ try:
             + Tss
 
         # Calculate PID output
-        [Q1[i], P, ierr, D] = pid(Tsp1[i], T1[i], T1[i-1], ierr, dt)
+        ePlot[i] = Tsp1[i] - T1[i]
+        si, dedt, eantNew, iantNew = belbic.SI(ePlot[i], 60*run_time, eant, iant)
+        eant = eantNew
+        iant = iantNew
+
+        rew = abs(ePlot[i])
+
+        viNew, wiNew = belbic.sensory_cortex(si, rew, A, E_dot, vi, wi)
+        vi = viNew
+        wi = wiNew
+
+        O, E_dot = belbic.orbifrontal_cortex(wi, si, A, O, rew)
+        A, E = belbic.amygdala(vi, si, A, O, rew)
+
+        uPlot[i] = A - O
+
+        if (uPlot[i] >= uMax):
+            uPlot[i] = uMax
+        elif (uPlot[i] <= 0):
+            uPlot[i] = 0
+        
+        Q1[i] = uPlot[i]
+        # [Q1[i], P, ierr, D] = pid(Tsp1[i], T1[i], T1[i-1], ierr, dt)
 
         # Start setpoint error accumulation after 1 minute (60 seconds)
         if i >= 60:
@@ -263,9 +292,9 @@ try:
 
         # Print line of data
         print(('{:6.1f} {:6.2f} {:6.2f} ' +
-              '{:6.2f} {:6.2f} {:6.2f} {:6.2f}').format(
+              '{:6.2f} {:6.2f}').format(
                   tm[i], Tsp1[i], T1[i],
-                  Q1[i], P, ierr, D))
+                  Q1[i], ierr))
         # plt.pause(0.05)
 # Plot
     # Turn off heaters
@@ -323,7 +352,7 @@ except KeyboardInterrupt:
     # a.Q2(0)
     print('Shutting down')
     # a.close()
-    save_txt(tm[0:i], Q1[0:i], Q2[0:i], T1[0:i], T2[0:i], Tsp1[0:i], Tsp2[0:i])
+    # save_txt(tm[0:i], Q1[0:i], Q2[0:i], T1[0:i], T2[0:i], Tsp1[0:i], Tsp2[0:i])
     plt.savefig('test_belbic.png')
 
 # Make sure serial connection still closes when there's an error

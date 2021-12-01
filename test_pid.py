@@ -22,27 +22,6 @@ print('✔ board ready!')
 temperature = 0
 
 def handle_temperature(*data):
-    # print(data)
-
-    # datasToWrite = []
-
-    # datasToWrite.append(12)
-    # datasToWrite.append(0)
-    # datasToWrite.append(1)
-    # datasToWrite.append(8)
-    # datasToWrite.append(204)
-
-    # value = 204
-
-    # v = divmod(value, 127)
-
-    # for i in range(1, v[0]):
-    #     datasToWrite.append(127)
-
-    # if (v[0] >= 1):
-    #     datasToWrite.append(v[1])
-    # else:
-    #     datasToWrite.append(value)
 
     rawV = 0
 
@@ -54,7 +33,6 @@ def handle_temperature(*data):
     temperature = (rawV * (5000 / 1023)) / 10
 
     # print(temperature)
-    # board.send_sysex(0x04, datasToWrite)
 
 
 board.add_cmd_handler(0x02, handle_temperature)
@@ -326,7 +304,7 @@ except KeyboardInterrupt:
     # a.Q2(0)
     print('Shutting down')
     # a.close()
-    save_txt(tm[0:i], Q1[0:i], Q2[0:i], T1[0:i], T2[0:i], Tsp1[0:i], Tsp2[0:i])
+    # save_txt(tm[0:i], Q1[0:i], Q2[0:i], T1[0:i], T2[0:i], Tsp1[0:i], Tsp2[0:i])
     plt.savefig('test_PID.png')
 
 # Make sure serial connection still closes when there's an error
