@@ -11,7 +11,6 @@ import time
 import matplotlib.pyplot as plt
 from scipy.integrate import odeint
 from BELBIC import belbic
-from BELBIC.calc import e_dot
 
 board = Arduino('/dev/ttyUSB0')
 it = util.Iterator(board)
@@ -195,7 +194,6 @@ belbic.ki = 10 / 50
 belbic.kd = 10 * 1
 
 belbic.h = 60*run_time
-belbic.E_dot = E_dot
 
 belbic.alpha = 1.93
 belbic.beta = 0.78
