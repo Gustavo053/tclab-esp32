@@ -188,15 +188,16 @@ uPlot = np.zeros(loops)
 eant = 0
 iant = 0
 E_dot = 0
+E = 0
 
-belbic.kp = 10
-belbic.ki = 10 / 50
-belbic.kd = 10 * 1
+belbic.kp = 1.91
+belbic.ki = 0.38
+belbic.kd = 0.63
 
 belbic.h = 60*run_time
 
-belbic.alpha = 1.93
-belbic.beta = 0.78
+belbic.alpha = 0.30
+belbic.beta = 0.01
 
 vi = 0.81
 wi = 1.0
@@ -264,7 +265,11 @@ try:
         elif (uPlot[i] <= 0):
             uPlot[i] = 0
         
-        Q1[i] = uPlot[i]
+        
+        #mapeando para potência
+        Q1_map = (100 * uPlot[i]) / uMax
+        value_Q1 = max(0, min(Q1_map, 100))
+        Q1[i] = int(value_Q1 * 255) / 100
         # [Q1[i], P, ierr, D] = pid(Tsp1[i], T1[i], T1[i-1], ierr, dt)
 
         # Start setpoint error accumulation after 1 minute (60 seconds)
