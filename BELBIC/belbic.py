@@ -26,12 +26,13 @@ u = 0
 iMax = 3.3
 
 
-def SI(e, tMax, eant, iant):
+def SI(e, eant, iant, y, yant):
     # print(f'eant: ', eant)
     # print(f'iant: ', iant)
+    dy = (y - yant) / h
     P = e * kp
-    I = iant + (ki * h) * (e + eant)
-    D = (kd/h) * (e - eant)
+    I = iant + ki * e * h
+    D = -kd * dy
 
     if (I > iMax):
         I = iMax

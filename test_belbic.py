@@ -127,7 +127,7 @@ def heat(x, t, Q):
 # a.LED(100)
 
 # Run time in minutes
-run_time = 2
+run_time = 15
 
 # Number of cycles
 loops = int(60.0*run_time)
@@ -180,6 +180,7 @@ dt_error = 0.0
 # Integral error
 ierr = 0.0
 
+#belbic initial param values
 uMax = 3.3
 
 ePlot = np.zeros(loops)
@@ -190,17 +191,16 @@ iant = 0
 E_dot = 0
 E = 0
 
-belbic.kp = 1.91
-belbic.ki = 0.38
-belbic.kd = 0.63
+#Not used, because TCLAB PID is used instead of belbic PID
+belbic.kp = 85
+belbic.ki = 1.7
+belbic.kd = 85
 
-belbic.h = 60*run_time
+belbic.alpha = 0.00087
+belbic.beta = 0.00001
 
-belbic.alpha = 0.30
-belbic.beta = 0.01
-
-vi = 0.81
-wi = 1.0
+vi = 0
+wi = 0
 
 A = 0
 O = 0
@@ -226,10 +226,14 @@ try:
         prev_time = t
         tm[i] = t - start_time
 
+        #Update belbic sampling time
+        belbic.h = dt
+
+        # print('h: ', belbic.h)
+
         # Read temperatures in Kelvin
 
         board.send_sysex(0x02, [32])
-
         T1[i] = temperature
         # T2[i] = a.T2
 
@@ -243,13 +247,19 @@ try:
             + (Q1[max(0, i-int(thetaP)-1)]-Qss)*(1-z)*Kp \
             + Tss
 
-        # Calculate PID output
+        # Calculate PID output from TCLAB as belbic SI block
         ePlot[i] = Tsp1[i] - T1[i]
-        si, dedt, eantNew, iantNew = belbic.SI(ePlot[i], 60*run_time, eant, iant)
-        eant = eantNew
-        iant = iantNew
+        [si, P, ierr, D] = pid(Tsp1[i], T1[i], T1[i-1], ierr, dt)
+
+        # Original SI block from belbic
+        # si, dedt, eantNew, iantNew = belbic.SI(ePlot[i], eant, iant, T1[i], T1[i - 1])
+        # eant = eantNew
+        # iant = iantNew
 
         rew = abs(ePlot[i])
+
+        belbic.alpha = belbic.alpha * belbic.h
+        belbic.beta = belbic.beta * belbic.h
 
         viNew, wiNew = belbic.sensory_cortex(si, rew, A, E_dot, vi, wi)
         vi = viNew
@@ -260,17 +270,18 @@ try:
 
         uPlot[i] = A - O
 
+        # print('raw signal control: ', uPlot[i])
+
         if (uPlot[i] >= uMax):
             uPlot[i] = uMax
         elif (uPlot[i] <= 0):
             uPlot[i] = 0
         
         
-        #mapeando para potência
+        #mapping to power
         Q1_map = (100 * uPlot[i]) / uMax
         value_Q1 = max(0, min(Q1_map, 100))
         Q1[i] = int(value_Q1 * 255) / 100
-        # [Q1[i], P, ierr, D] = pid(Tsp1[i], T1[i], T1[i-1], ierr, dt)
 
         # Start setpoint error accumulation after 1 minute (60 seconds)
         if i >= 60:
@@ -307,6 +318,8 @@ try:
     datasToWrite.append(49)
     datasToWrite.append(8)
     datasToWrite.append(0)
+    
+    board.send_sysex(0x04, datasToWrite)
     # a.Q1(0)
     # a.Q2(0)
     # Save figure
