@@ -4,6 +4,9 @@
 #define IS_PIN_ANALOG(p)        (((p) >= 32 && (p) <= 32 + TOTAL_ANALOG_PINS))
 #define IS_PIN_PWM(p)           digitalPinHasPWM(p) // all gpios in digital
 
+#OBS: Para este teste, o produto da resolução PWM no arquivo FirmataExt.cpp foi alterado de 1000 para 10.
+#     Esse alteração foi feita para que a frequência no pino do ESP32 seja a mesma do arduino uno: 490Hz.
+
 from copy import error
 from pyfirmata import Arduino, util
 import numpy as np
