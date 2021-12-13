@@ -90,11 +90,18 @@ def save_txt(t, u1, u2, y1, y2, sp1, sp2):
 ######################################################
 # FOPDT model                                        #
 ######################################################
-Kp = 0.5      # degC/%
-tauP = 120.0  # seconds
-thetaP = 10   # seconds (integer)
-Tss = 23      # degC (ambient temperature)
-Qss = 0       # % heater
+
+Kp = 0.6747566878044584
+tauP = 172.3375915827159
+thetaP = 29.130396322742243
+Tss = 30
+Qss = 0
+
+# Kp = 0.5      # degC/%
+# tauP = 120.0  # seconds
+# thetaP = 10   # seconds (integer)
+# Tss = 23      # degC (ambient temperature)
+# Qss = 0       # % heater
 
 ######################################################
 # Energy balance model                               #
@@ -199,8 +206,8 @@ belbic.kp = 85
 belbic.ki = 1.7
 belbic.kd = 85
 
-belbic.alpha = 0.00087
-belbic.beta = 0.00001
+belbic.alpha = 0.001
+belbic.beta = 0.0000097
 
 vi = 0
 wi = 0
@@ -371,6 +378,20 @@ except KeyboardInterrupt:
     print('Shutting down')
     # a.close()
     # save_txt(tm[0:i], Q1[0:i], Q2[0:i], T1[0:i], T2[0:i], Tsp1[0:i], Tsp2[0:i])
+    plt.clf()
+    ax = plt.subplot(2, 1, 1)
+    ax.grid()
+    plt.plot(tm, T1, 'r.', label=r'$T_1$ measured')
+    plt.plot(tm, Tsp1, 'k--', label=r'$T_1$ set point')
+    plt.ylim(25, 110)
+    plt.ylabel('Temperature (degC)')
+    plt.legend(loc=2)
+    ax = plt.subplot(2, 1, 2)
+    ax.grid()
+    plt.plot(tm, Q1, 'b-', label=r'$Q_1$')
+    plt.ylabel('Heater')
+    plt.legend(loc='best')
+
     plt.savefig('test_belbic.png')
 
 # Make sure serial connection still closes when there's an error
@@ -387,5 +408,19 @@ except:
     print('Error: Shutting down')
     # a.close()
     # save_txt(tm[0:i], Q1[0:i], Q2[0:i], T1[0:i], T2[0:i], Tsp1[0:i], Tsp2[0:i])
+    plt.clf()
+    ax = plt.subplot(2, 1, 1)
+    ax.grid()
+    plt.plot(tm, T1, 'r.', label=r'$T_1$ measured')
+    plt.plot(tm, Tsp1, 'k--', label=r'$T_1$ set point')
+    plt.ylim(25, 110)
+    plt.ylabel('Temperature (degC)')
+    plt.legend(loc=2)
+    ax = plt.subplot(2, 1, 2)
+    ax.grid()
+    plt.plot(tm, Q1, 'b-', label=r'$Q_1$')
+    plt.ylabel('Heater')
+    plt.legend(loc='best')
+    
     plt.savefig('test_belbic.png')
     raise
