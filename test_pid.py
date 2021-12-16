@@ -84,15 +84,37 @@ def save_txt(t, u1, u2, y1, y2, sp1, sp2):
            'Set Point 1 (degC), Set Point 2 (degC)')
     np.savetxt('data.txt', data, delimiter=',', header=top, comments='')
 
+def save_data_pid(y, u, erro):
+    data = np.vstack((y, u, erro))
+    data = data.T
+    top = ('Temperature (degC), Heater (%), error')
+    np.savetxt('data_pid.csv', data, delimiter=',', header=top, comments='')
+
 
 ######################################################
 # FOPDT model                                        #
 ######################################################
-Kp = 0.5      # degC/%
-tauP = 120.0  # seconds
-thetaP = 10   # seconds (integer)
-Tss = 23      # degC (ambient temperature)
-Qss = 0       # % heater
+
+#Get in pidtuner.com
+Kp = 0.34953822182155675
+tauP = 113.55168586918873
+thetaP = 31.945949604357498
+Tss = 30
+Qss = 0
+
+#Get in regression experiment
+# Kp = 0.6747566878044584
+# tauP = 172.3375915827159
+# thetaP = 29.130396322742243
+# Tss = 30
+# Qss = 0
+
+#Original
+# Kp = 0.5      # degC/%
+# tauP = 120.0  # seconds
+# thetaP = 10   # seconds (integer)
+# Tss = 23      # degC (ambient temperature)
+# Qss = 0       # % heater
 
 ######################################################
 # Energy balance model                               #
@@ -142,6 +164,7 @@ Tsp1[360:] = 30.0
 Tsp1[660:] = 40.0
 
 board.send_sysex(0x02, [32])
+time.sleep(0.1) #Esse sleep é necessário para dar tempo do valor da variável temperatura ser atualizado
 
 T1 = np.ones(loops) * temperature # measured T (degC)
 error_sp = np.zeros(loops)
@@ -152,6 +175,7 @@ Tsp2 = np.ones(loops) * 23.0  # set point (degC)
 # Predictions
 
 board.send_sysex(0x02, [32])
+time.sleep(0.1) #Esse sleep é necessário para dar tempo do valor da variável temperatura ser atualizado
 
 Tp = np.ones(loops) * temperature
 error_eb = np.zeros(loops)
@@ -161,6 +185,8 @@ error_fopdt = np.zeros(loops)
 # impulse tests (0 - 100%)
 Q1 = np.ones(loops) * 0.0
 Q2 = np.ones(loops) * 0.0
+
+error = np.zeros(loops)
 
 print('Running Main Loop. Ctrl-C to end.')
 print('  Time     SP     PV     Q1   =  P   +  I  +   D')
@@ -207,6 +233,8 @@ try:
 
         T1[i] = temperature
         # T2[i] = a.T2
+
+        error[i] = Tsp1[i] - T1[i]
 
         # Simulate one time step with Energy Balance
         Tnext = odeint(heat, Tp[i-1]+273.15, [0, dt], args=(Q1[i-1],))
@@ -257,69 +285,117 @@ try:
     datasToWrite.append(49)
     datasToWrite.append(8)
     datasToWrite.append(0)
-    # a.Q1(0)
-    # a.Q2(0)
-    # Save figure
     
+    board.send_sysex(0x04, datasToWrite)
 
     plt.clf()
-    ax = plt.subplot(2, 1, 1)
+    ax = plt.subplot(3, 1, 1)
     ax.grid()
     plt.plot(tm, T1, 'r.', label=r'$T_1$ measured')
     plt.plot(tm, Tsp1, 'k--', label=r'$T_1$ set point')
     plt.ylim(25, 110)
     plt.ylabel('Temperature (degC)')
     plt.legend(loc=2)
-    ax = plt.subplot(2, 1, 2)
+    ax = plt.subplot(3, 1, 2)
     ax.grid()
     plt.plot(tm, Q1, 'b-', label=r'$Q_1$')
     plt.ylabel('Heater')
     plt.legend(loc='best')
-    # ax = plt.subplot(3, 1, 3)
-    # ax.grid()
-    # plt.plot(tm, T1, 'r.', label=r'$T_1$ measured')
-    # plt.plot(tm, Tpl, 'g-', label=r'$T_1$ linear model')
-    # plt.ylabel('Temperature (degC)')
-    # plt.legend(loc=2)
+    ax = plt.subplot(3, 1, 3)
+    ax.grid()
+    plt.plot(tm, T1, 'r.', label=r'$T_1$ measured')
+    plt.plot(tm, Tpl, 'g-', label=r'$T_1$ linear model')
+    plt.ylabel('Temperature (degC)')
+    plt.legend(loc=2)
     plt.xlabel('Time (sec)')
     plt.draw()
     plt.savefig('test_PID.png')
 
-    #Salvar o erro, sinal de controle, y (saída) em um arquivo .txt
-    save_txt(error_sp, Q1, T1)
+    #Salvar o y (saída), sinal de controle, erro em um arquivo .txt
+    save_data_pid(T1, Q1, error)
+
+    board.exit()
 
     # Save text file
     # save_txt(tm[0:i], Q1[0:i], Q2[0:i], T1[0:i], T2[0:i], Tsp1[0:i], Tsp2[0:i])
 
 # Allow user to end loop with Ctrl-C
 except KeyboardInterrupt:
-    # Disconnect from Arduino
+    # Disconnect from ESP32
     datasToWrite = []
     datasToWrite.append(12)
     datasToWrite.append(0)
     datasToWrite.append(49)
     datasToWrite.append(8)
     datasToWrite.append(0)
-    # a.Q1(0)
-    # a.Q2(0)
-    print('Shutting down')
-    # a.close()
-    # save_txt(tm[0:i], Q1[0:i], Q2[0:i], T1[0:i], T2[0:i], Tsp1[0:i], Tsp2[0:i])
+
+    board.send_sysex(0x04, datasToWrite)
+
+    plt.clf()
+    ax = plt.subplot(3, 1, 1)
+    ax.grid()
+    plt.plot(tm, T1, 'r.', label=r'$T_1$ measured')
+    plt.plot(tm, Tsp1, 'k--', label=r'$T_1$ set point')
+    plt.ylim(25, 110)
+    plt.ylabel('Temperature (degC)')
+    plt.legend(loc=2)
+    ax = plt.subplot(3, 1, 2)
+    ax.grid()
+    plt.plot(tm, Q1, 'b-', label=r'$Q_1$')
+    plt.ylabel('Heater')
+    plt.legend(loc='best')
+    ax = plt.subplot(3, 1, 3)
+    ax.grid()
+    plt.plot(tm, T1, 'r.', label=r'$T_1$ measured')
+    plt.plot(tm, Tpl, 'g-', label=r'$T_1$ linear model')
+    plt.ylabel('Temperature (degC)')
+    plt.legend(loc=2)
+    plt.xlabel('Time (sec)')
+    plt.draw()
     plt.savefig('test_PID.png')
+    save_data_pid(T1, Q1, error)
+
+    board.exit()
+
+    print('Shutting down')
 
 # Make sure serial connection still closes when there's an error
 except:
-    # Disconnect from Arduino
+    # Disconnect from ESP32
     datasToWrite = []
     datasToWrite.append(12)
     datasToWrite.append(0)
     datasToWrite.append(49)
     datasToWrite.append(8)
     datasToWrite.append(0)
-    # a.Q1(0)
-    # a.Q2(0)
-    print('Error: Shutting down')
-    # a.close()
-    # save_txt(tm[0:i], Q1[0:i], Q2[0:i], T1[0:i], T2[0:i], Tsp1[0:i], Tsp2[0:i])
+    
+    board.send_sysex(0x04, datasToWrite)
+    
+    plt.clf()
+    ax = plt.subplot(3, 1, 1)
+    ax.grid()
+    plt.plot(tm, T1, 'r.', label=r'$T_1$ measured')
+    plt.plot(tm, Tsp1, 'k--', label=r'$T_1$ set point')
+    plt.ylim(25, 110)
+    plt.ylabel('Temperature (degC)')
+    plt.legend(loc=2)
+    ax = plt.subplot(3, 1, 2)
+    ax.grid()
+    plt.plot(tm, Q1, 'b-', label=r'$Q_1$')
+    plt.ylabel('Heater')
+    plt.legend(loc='best')
+    ax = plt.subplot(3, 1, 3)
+    ax.grid()
+    plt.plot(tm, T1, 'r.', label=r'$T_1$ measured')
+    plt.plot(tm, Tpl, 'g-', label=r'$T_1$ linear model')
+    plt.ylabel('Temperature (degC)')
+    plt.legend(loc=2)
+    plt.xlabel('Time (sec)')
+    plt.draw()
     plt.savefig('test_PID.png')
+    save_data_pid(T1, Q1, error)
+
+    board.exit()
+
+    print('Shutting down')
     raise
