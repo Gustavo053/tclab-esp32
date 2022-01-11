@@ -29,6 +29,7 @@ tm = np.linspace(0,n,n+1) # Time values
 
 # data
 board.send_sysex(0x02, [32])
+time.sleep(0.1) #Esse sleep é necessário para dar tempo do valor da variável temperatura ser atualizado
 T1 = [temperature]
 QPlot = np.zeros(n+1) #for plotting the percentage value
 QPlot[30:] = 70.0 #for plotting the percentage value
@@ -48,6 +49,11 @@ for i in range(n):
     board.send_sysex(0x02, [32])
     print(temperature)
     T1.append(temperature)
+
+# Save data file
+data = np.vstack((tm,Q1,T1)).T
+np.savetxt('Step_Response.csv',data,delimiter=',',\
+            header='Time,Q1,T1',comments='')
 
 # Create Figure
 plt.figure(figsize=(12,8))
